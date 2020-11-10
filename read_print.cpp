@@ -14,7 +14,9 @@ inline static double f(int k, int n, int i, int j)
     case 4:
       return 1.f / (i + j + 1);
     case 5:
-      return (double)i == j;
+      return i == j;
+    case 6:
+      return ((double)n - std::max(i, j) + 1) * (i != 0);
     default:
       return 0;
   }

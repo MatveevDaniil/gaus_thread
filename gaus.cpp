@@ -3,7 +3,8 @@
 #include "for_thread.h"
 #include <algorithm>
 #define swap double a double b {double t = a; a = b; b = t;}
-#define EPS 2e-16
+#define EPS 2e-16 
+bool work = true;
 
 inline static int divUp(int a, int b) { return 1 + (a - 1) / b; }
 
@@ -11,8 +12,8 @@ inline static int main_element(double *matrix, int n, int i)
 {
   double max_el = fabs(matrix[i * n + i]);
   int max_idx = i * n + i;
-  for(int k = i; k < n; k ++)
-    for(int l = i; l < n; l ++)
+  for (int k = i; k < n; k++)
+    for (int l = i; l < n; l++)
       if (fabs(matrix[k * n + l]) > max_el) {
         max_el = fabs(matrix[k * n + l]);
         max_idx = k * n + l;
@@ -27,7 +28,7 @@ inline static void replace_with_main_element(double *matrix, double *reverse, in
   double *matrix_main_i = matrix + main_i * n, *reverse_main_i = reverse + main_i * n;
   if (main_i == i) {
     // та же строка => меняем переменные, т.е. столбцы
-    for(int k = 0; k < n; k ++) {
+    for (int k = 0; k < n; k++) {
       rabotyga = matrix[k * n + i];
       matrix[k * n + i] = matrix[k * n + main_j];
       matrix[k * n + main_j] = rabotyga;
@@ -72,8 +73,9 @@ inline static void replace_with_main_element(double *matrix, double *reverse, in
   }
 }
 
-int gaus_fprop(double *matrix, double *reverse, int n, 
-               int *idxs, int thread_idx, int total_threads)
+void _gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
+  int thread_idx, int total_threads, int *max_idx_list,
+  double *max_el_list)
 {
   int i, j, k;
   int tmp;
@@ -82,59 +84,64 @@ int gaus_fprop(double *matrix, double *reverse, int n,
   double *matrix_i, *reverse_i, *matrix_j, *reverse_j;
   double a_ii_rev, m_ji;
   double m_nn, m_nn_rev, *m_i, *r_i;
-  for(i = 0; i < n; i++) {
-    if (thread_idx == 0) {
-      main_el_idx = main_element(matrix, n, i);
-      main_i = main_el_idx / n;
-      main_j = main_el_idx % n;
-      tmp = idxs[main_j];
-      idxs[main_j] = idxs[i];
-      idxs[i] = tmp;
-      replace_with_main_element(matrix, reverse, n, i, main_i, main_j);
-      if (fabs(matrix[i * n + i]) < EPS) {
-        std::cout << "zero max on: " << i << " " << fabs(matrix[i * n + i]) << std::endl;
-        return -1;
-      }
-      a_ii_rev = 1 / matrix[i * n + i];
-      matrix_i = matrix + i * n;
-      reverse_i = reverse + i * n;
-      // домножеаем подстроки в обычной и строки в приписанной
-      for (k = i; k < n; k++) {
-        matrix_i[k] *= a_ii_rev;
-      }
-      for (k = 0; k < n; k++) {
-        reverse_i[k] *= a_ii_rev;
-      }
-    }
-    synchronize(total_threads);
-    if (i < n - 1) {
-      threads_num = std::min(n - i - 1, total_threads);
-      thread_range = divUp(n - i - 1, threads_num);
-      fst = i + 1 + thread_range * thread_idx;
-      lst = std::min(n, fst + thread_range);
-      for(j = fst; j < lst; j++) {
-        matrix_i = matrix + i * n;
-        matrix_j = matrix + j * n;
-        reverse_j = reverse + j * n;
-        reverse_i = reverse + i * n;
-        //printf("%f\n", matrix_j[i]);
-        m_ji = matrix_j[i];
-        // зачищаем подстроки в обычной матрице и строки в приписанной
-        for (k = i; k < n; k++) {
-          matrix_j[k] -= m_ji * matrix_i[k];
+  for (i = 0; i < n; i++) {
+    if (work) {
+      if (thread_idx == 0) {
+        main_el_idx = main_element(matrix, n, i);
+        if (fabs(matrix[main_el_idx]) < EPS) {
+          work = false;
+          return;
         }
-        for (k = 0; k < n; k++) {
-          reverse_j[k] -= m_ji * reverse_i[k];
+        if (work) {
+          main_i = main_el_idx / n;
+          main_j = main_el_idx % n;
+          tmp = idxs[main_j];
+          idxs[main_j] = idxs[i];
+          idxs[i] = tmp;
+          replace_with_main_element(matrix, reverse, n, i, main_i, main_j);
+          a_ii_rev = 1 / matrix[i * n + i];
+          matrix_i = matrix + i * n;
+          reverse_i = reverse + i * n;
+          // домножеаем подстроки в обычной и строки в приписанной
+          for (k = i; k < n; k++) {
+            matrix_i[k] *= a_ii_rev;
+          }
+          for (k = 0; k < n; k++) {
+            reverse_i[k] *= a_ii_rev;
+          }
         }
       }
+      if (work) {
+        synchronize(total_threads);
+        if (i < n - 1) {
+          threads_num = std::min(n - i - 1, total_threads);
+          thread_range = divUp(n - i - 1, threads_num);
+          fst = i + 1 + thread_range * thread_idx;
+          lst = std::min(n, fst + thread_range);
+          for (j = fst; j < lst; j++) {
+            matrix_i = matrix + i * n;
+            matrix_j = matrix + j * n;
+            reverse_j = reverse + j * n;
+            reverse_i = reverse + i * n;
+            //printf("%f\n", matrix_j[i]);
+            m_ji = matrix_j[i];
+            // зачищаем подстроки в обычной матрице и строки в приписанной
+            for (k = i; k < n; k++) {
+              matrix_j[k] -= m_ji * matrix_i[k];
+            }
+            for (k = 0; k < n; k++) {
+              reverse_j[k] -= m_ji * reverse_i[k];
+            }
+          }
+        }
+        synchronize(total_threads);
+      }
     }
-    synchronize(total_threads);
   }
-  return 0;
 }
 
-int gaus_bprop(double *matrix, double *reverse, int n, 
-               int thread_idx, int total_threads)
+int gaus_bprop(double *matrix, double *reverse, int n,
+  int thread_idx, int total_threads)
 {
   int i, j, k;
   int threads_num, thread_range, fst, lst;
@@ -172,8 +179,8 @@ double error(double *matrix, double *reverse, int n) {
   return error;
 }
 
-void replace(double * pre_reverse, double * or_matrix, int n, 
-             int *idxs, int total_threads, int thread_idx) {
+void replace(double * pre_reverse, double * or_matrix, int n,
+  int *idxs, int total_threads, int thread_idx) {
   int thread_range = divUp(n, total_threads);
   int fst = thread_range * thread_idx;
   int lst = std::min(n, fst + thread_range);
@@ -182,19 +189,110 @@ void replace(double * pre_reverse, double * or_matrix, int n,
       or_matrix[idxs[i] * n + idxs[j]] = pre_reverse[i * n + j];
 }
 
+void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
+  int thread_idx, int total_threads, int *max_idx_list,
+  double *max_el_list)
+{
+  int i, j, k;
+  int tmp;
+  int main_el_idx, main_i, main_j;
+  int fst, lst, threads_num, thread_range;
+  double *matrix_i, *reverse_i, *matrix_j, *reverse_j;
+  double a_ii_rev, m_ji;
+  double m_nn, m_nn_rev, *m_i, *r_i;
+  for (i = 0; i < n; i++) {
+    if (work) {
+      threads_num = std::min(n - i, total_threads);
+      thread_range = divUp(n - i, threads_num);
+      fst = i + thread_range * thread_idx;
+      lst = std::min(n, fst + thread_range);
+      double max_el = fabs(matrix[i * n + i]);
+      int max_idx = i * n + i;
+      for (k = fst; k < lst; k++)
+        for (int l = i; l < n; l++)
+          if (fabs(matrix[k * n + l]) > max_el) {
+            max_el = fabs(matrix[k * n + l]);
+            max_idx = k * n + l;
+          }
+      max_el_list[thread_idx] = max_el;
+      max_idx_list[thread_idx] = max_idx;
+      synchronize(total_threads);
+      if (thread_idx == 0) {
+        main_el_idx = max_idx_list[0];
+        double main_el = max_el_list[0];
+        for (int l = 1; l < threads_num; l++)
+          if (fabs(main_el) < fabs(max_el_list[l])) {
+            main_el_idx = max_idx_list[l];
+            main_el = max_el_list[l];
+          }
+        if (fabs(main_el) < EPS) {
+          work = false;
+        }
+        if (work) {
+          main_i = main_el_idx / n;
+          main_j = main_el_idx % n;
+          tmp = idxs[main_j];
+          idxs[main_j] = idxs[i];
+          idxs[i] = tmp;
+          replace_with_main_element(matrix, reverse, n, i, main_i, main_j);
+          a_ii_rev = 1 / matrix[i * n + i];
+          matrix_i = matrix + i * n;
+          reverse_i = reverse + i * n;
+          // домножеаем подстроки в обычной и строки в приписанной
+          for (k = i; k < n; k++) {
+            matrix_i[k] *= a_ii_rev;
+          }
+          for (k = 0; k < n; k++) {
+            reverse_i[k] *= a_ii_rev;
+          }
+        }
+      }
+      synchronize(total_threads);
+      if (work) {
+        synchronize(total_threads);
+        if (i < n - 1) {
+          threads_num = std::min(n - i - 1, total_threads);
+          thread_range = divUp(n - i - 1, threads_num);
+          fst = i + 1 + thread_range * thread_idx;
+          lst = std::min(n, fst + thread_range);
+          for (j = fst; j < lst; j++) {
+            matrix_i = matrix + i * n;
+            matrix_j = matrix + j * n;
+            reverse_j = reverse + j * n;
+            reverse_i = reverse + i * n;
+            //printf("%f\n", matrix_j[i]);
+            m_ji = matrix_j[i];
+            // зачищаем подстроки в обычной матрице и строки в приписанной
+            for (k = i; k < n; k++) {
+              matrix_j[k] -= m_ji * matrix_i[k];
+            }
+            for (k = 0; k < n; k++) {
+              reverse_j[k] -= m_ji * reverse_i[k];
+            }
+          }
+        }
+        synchronize(total_threads);
+      }
+    }
+  }
+}
+
 void *gaus_full_algorithm(void *void_args) {
   ARGS *args = (ARGS*)void_args;
+  synchronize(args->total_threads);
   args->thread_time = get_full_time();
   //InvMatrix(arg->n, arg->a, arg->x, arg->index, arg->my_rank, arg->total_threads);
-  int gaus_fprop_err = gaus_fprop(args->matrix, args->reverse, args->n, args->idxs,
-                                  args->thread_idx, args->total_threads);
-  args[0].algo_error = gaus_fprop_err;
-
-  if (gaus_fprop_err == 0) {
+  gaus_fprop(args->matrix, args->reverse, args->n, args->idxs,
+    args->thread_idx, args->total_threads,
+    args->max_idx_list, args->max_el_list);
+  synchronize(args->total_threads); // падает
+  if (work) {
     gaus_bprop(args->matrix, args->reverse, args->n,
                args->thread_idx, args->total_threads);
-    replace(args->reverse, args->matrix, args->n, 
+    replace(args->reverse, args->matrix, args->n,
             args->idxs, args->total_threads, args->thread_idx);
+  } else {
+    args[0].algo_error = -1;
   }
   synchronize(args->total_threads);
   args->thread_time = get_full_time() - args->thread_time;

@@ -31,7 +31,7 @@ int main(int argc, char **argv)
     }
     else
       total_threads = atoi(argv[4]);
-    if (n <= 0 || m <= 0 || k < 0 || k > 4 || total_threads < 1) {
+    if (n <= 0 || m <= 0 || k < 0 || k > 6 || total_threads < 1) {
       std::cout << "usage: 'prog n m 0 filename' or 'prog n m k', where n > 0, m > 0, 4 >= k > 0, t >= 1" << std::endl;
       return -2;
     }
@@ -85,6 +85,8 @@ int main(int argc, char **argv)
     delete[] matrix, reverse, matrix_copy, idxs;
     return -7;
   }
+  double *max_el_list = new double[total_threads];
+  int *max_idx_list = new int[total_threads];
   //int gaus_fprop_err = gaus_full_algorithm(matrix, reverse, n, idxs);
   for (int i = 0; i < total_threads; i++)
   {
@@ -94,12 +96,15 @@ int main(int argc, char **argv)
     args[i].idxs = idxs;
     args[i].thread_idx = i;
     args[i].total_threads = total_threads;
+    args[i].max_el_list = max_el_list;
+    args[i].max_idx_list = max_idx_list;
   }
   double total_time = get_full_time();
   for (int i = 0; i < total_threads; i++)
     if (pthread_create(threads + i, 0, gaus_full_algorithm, args + i)) {
       std::cout << "error when creating thread " << i << std::endl;
       delete[] args, threads, matrix, reverse, matrix_copy, idxs;
+      delete[] max_el_list, max_idx_list;
       return -8;
     }
   for (int i = 0; i < total_threads; i++)
@@ -108,16 +113,17 @@ int main(int argc, char **argv)
       std::cout << "error in joining threads" << std::endl;
       if (threads) delete[]threads;
       delete[] args, matrix, reverse, matrix_copy, idxs;
+      delete[] max_el_list, max_idx_list;
       return -9;
     }
-  double gaus_id_error = error(matrix_copy, matrix, n);
-  int gaus_fprop_err = args[0].algo_error;
-  if(gaus_fprop_err == -1) {
+  if(args[0].algo_error == -1) {
     std::cout << "det(matrix) = 0" << std::endl;
     delete[] args, threads, matrix, reverse, matrix_copy, idxs;
+    delete[] max_el_list, max_idx_list;
     return -10;
   }
 
+  double gaus_id_error = error(matrix_copy, matrix, n);
   std::cout << "nerror: " << gaus_id_error << std::endl;
 
   std::cout << "total time: " << get_full_time() - total_time << " s" << std::endl;
@@ -132,6 +138,7 @@ int main(int argc, char **argv)
 //   std::cout << "E matrix" << std::endl;
 //   print_matrix(m, m, n, matrix);
   delete[] args, threads, matrix, reverse, matrix_copy, idxs;
+  delete[] max_el_list, max_idx_list;
   return 0;
 }
 

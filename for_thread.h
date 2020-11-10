@@ -10,10 +10,12 @@ typedef struct
   int n;
   double *matrix;
   double *reverse;
+  double *max_el_list;
+  int *max_idx_list;
   int *idxs;
   int thread_idx;
   int total_threads;
   //output
-  int algo_error;
+  int algo_error=0;
   double thread_time;
 } ARGS;

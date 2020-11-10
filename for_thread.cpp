@@ -1,6 +1,6 @@
 #include "for_thread.h"
-#include <sys/time.h>
-
+#include <time.h>
+#include "timeofday.h"
 void synchronize(int total_threads)
 {
   static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
