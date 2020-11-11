@@ -73,92 +73,21 @@ inline static void replace_with_main_element(double *matrix, double *reverse, in
   }
 }
 
-void _gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
-  int thread_idx, int total_threads, int *max_idx_list,
-  double *max_el_list)
-{
-  int i, j, k;
-  int tmp;
-  int main_el_idx, main_i, main_j;
-  int fst, lst, threads_num, thread_range;
-  double *matrix_i, *reverse_i, *matrix_j, *reverse_j;
-  double a_ii_rev, m_ji;
-  double m_nn, m_nn_rev, *m_i, *r_i;
-  for (i = 0; i < n; i++) {
-    if (work) {
-      if (thread_idx == 0) {
-        main_el_idx = main_element(matrix, n, i);
-        if (fabs(matrix[main_el_idx]) < EPS) {
-          work = false;
-          return;
-        }
-        if (work) {
-          main_i = main_el_idx / n;
-          main_j = main_el_idx % n;
-          tmp = idxs[main_j];
-          idxs[main_j] = idxs[i];
-          idxs[i] = tmp;
-          replace_with_main_element(matrix, reverse, n, i, main_i, main_j);
-          a_ii_rev = 1 / matrix[i * n + i];
-          matrix_i = matrix + i * n;
-          reverse_i = reverse + i * n;
-          // домножеаем подстроки в обычной и строки в приписанной
-          for (k = i; k < n; k++) {
-            matrix_i[k] *= a_ii_rev;
-          }
-          for (k = 0; k < n; k++) {
-            reverse_i[k] *= a_ii_rev;
-          }
-        }
-      }
-      if (work) {
-        synchronize(total_threads);
-        if (i < n - 1) {
-          threads_num = std::min(n - i - 1, total_threads);
-          thread_range = divUp(n - i - 1, threads_num);
-          fst = i + 1 + thread_range * thread_idx;
-          lst = std::min(n, fst + thread_range);
-          for (j = fst; j < lst; j++) {
-            matrix_i = matrix + i * n;
-            matrix_j = matrix + j * n;
-            reverse_j = reverse + j * n;
-            reverse_i = reverse + i * n;
-            //printf("%f\n", matrix_j[i]);
-            m_ji = matrix_j[i];
-            // зачищаем подстроки в обычной матрице и строки в приписанной
-            for (k = i; k < n; k++) {
-              matrix_j[k] -= m_ji * matrix_i[k];
-            }
-            for (k = 0; k < n; k++) {
-              reverse_j[k] -= m_ji * reverse_i[k];
-            }
-          }
-        }
-        synchronize(total_threads);
-      }
-    }
-  }
-}
-
 int gaus_bprop(double *matrix, double *reverse, int n,
   int thread_idx, int total_threads)
 {
   int i, j, k;
   int threads_num, thread_range, fst, lst;
-  for (i = n - 1; i > 0; i--) {
-    threads_num = std::min(i + 1, total_threads);
-    thread_range = divUp(i + 1, threads_num);
-    fst = thread_range * thread_idx;
-    lst = std::min(i, fst + thread_range);
-    for (j = fst; j < lst; j++) {
-      //double m_ij = matrix[j * n + i];
-      for (k = 0; k < n; k++) {
-        //matrix[j * n + k] -= matrix[i * n + k] * m_ij;
+  threads_num = std::min(n, total_threads);
+  thread_range = divUp(n, threads_num);
+  fst = thread_range * thread_idx;
+  lst = fst + thread_range;
+  printf("%d %d\n", fst, lst);
+  for (k = fst; k < lst; k++)
+    for (i = n - 1; i > 0; i--)
+      for (j = 0; j < i; j++)
         reverse[j * n + k] -= reverse[i * n + k] * matrix[j * n + i];
-      }
-    }
-    synchronize(total_threads);
-  }
+  synchronize(total_threads);
   return 0;
 }
 
@@ -227,8 +156,7 @@ void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
           }
         if (fabs(main_el) < EPS) {
           work = false;
-        }
-        if (work) {
+        } else {
           main_i = main_el_idx / n;
           main_j = main_el_idx % n;
           tmp = idxs[main_j];
@@ -249,7 +177,6 @@ void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
       }
       synchronize(total_threads);
       if (work) {
-        synchronize(total_threads);
         if (i < n - 1) {
           threads_num = std::min(n - i - 1, total_threads);
           thread_range = divUp(n - i - 1, threads_num);
@@ -285,7 +212,7 @@ void *gaus_full_algorithm(void *void_args) {
   gaus_fprop(args->matrix, args->reverse, args->n, args->idxs,
     args->thread_idx, args->total_threads,
     args->max_idx_list, args->max_el_list);
-  synchronize(args->total_threads); // падает
+  synchronize(args->total_threads);
   if (work) {
     gaus_bprop(args->matrix, args->reverse, args->n,
                args->thread_idx, args->total_threads);
