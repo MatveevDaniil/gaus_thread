@@ -16,6 +16,6 @@ typedef struct
   int thread_idx;
   int total_threads;
   //output
-  int algo_error=0;
+  int *algo_error;
   double thread_time;
 } ARGS;

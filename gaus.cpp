@@ -82,7 +82,7 @@ int gaus_bprop(double *matrix, double *reverse, int n,
   thread_range = divUp(n, threads_num);
   fst = thread_range * thread_idx;
   lst = fst + thread_range;
-  printf("%d %d\n", fst, lst);
+  //printf("%d %d\n", fst, lst);
   for (k = fst; k < lst; k++)
     for (i = n - 1; i > 0; i--)
       for (j = 0; j < i; j++)
@@ -120,7 +120,7 @@ void replace(double * pre_reverse, double * or_matrix, int n,
 
 void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
   int thread_idx, int total_threads, int *max_idx_list,
-  double *max_el_list)
+  double *max_el_list, int *algo_error)
 {
   int i, j, k;
   int tmp;
@@ -130,7 +130,7 @@ void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
   double a_ii_rev, m_ji;
   double m_nn, m_nn_rev, *m_i, *r_i;
   for (i = 0; i < n; i++) {
-    if (work) {
+    if (*algo_error) {
       threads_num = std::min(n - i, total_threads);
       thread_range = divUp(n - i, threads_num);
       fst = i + thread_range * thread_idx;
@@ -155,7 +155,7 @@ void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
             main_el = max_el_list[l];
           }
         if (fabs(main_el) < EPS) {
-          work = false;
+          *algo_error = false;
         } else {
           main_i = main_el_idx / n;
           main_j = main_el_idx % n;
@@ -176,7 +176,7 @@ void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
         }
       }
       synchronize(total_threads);
-      if (work) {
+      if (*algo_error) {
         if (i < n - 1) {
           threads_num = std::min(n - i - 1, total_threads);
           thread_range = divUp(n - i - 1, threads_num);
@@ -211,16 +211,14 @@ void *gaus_full_algorithm(void *void_args) {
   //InvMatrix(arg->n, arg->a, arg->x, arg->index, arg->my_rank, arg->total_threads);
   gaus_fprop(args->matrix, args->reverse, args->n, args->idxs,
     args->thread_idx, args->total_threads,
-    args->max_idx_list, args->max_el_list);
+    args->max_idx_list, args->max_el_list, args[0].algo_error);
   synchronize(args->total_threads);
-  if (work) {
+  if (*args[0].algo_error) {
     gaus_bprop(args->matrix, args->reverse, args->n,
                args->thread_idx, args->total_threads);
     replace(args->reverse, args->matrix, args->n,
             args->idxs, args->total_threads, args->thread_idx);
-  } else {
-    args[0].algo_error = -1;
-  }
+  } 
   synchronize(args->total_threads);
   args->thread_time = get_full_time() - args->thread_time;
   return nullptr;

@@ -78,6 +78,11 @@ int main(int argc, char **argv)
     idxs[i] = i;
   pthread_t *threads = new pthread_t[total_threads];
   ARGS *args = new ARGS[total_threads];
+  int *algo_error = new int[1];
+  *algo_error = true;
+  for(int i = 0; i < total_threads; i++) {
+    args[i].algo_error = algo_error;
+  }
   if (args == nullptr || threads == nullptr) {
     std::cout << "can not allocate threads or args" << std::endl;
     if (args) delete[]args;
@@ -116,7 +121,7 @@ int main(int argc, char **argv)
       delete[] max_el_list, max_idx_list;
       return -9;
     }
-  if(args[0].algo_error == -1) {
+  if(*args[0].algo_error == 0) {
     std::cout << "det(matrix) = 0" << std::endl;
     delete[] args, threads, matrix, reverse, matrix_copy, idxs;
     delete[] max_el_list, max_idx_list;
