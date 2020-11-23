@@ -9,7 +9,8 @@ int main(int argc, char **argv)
 {
   int n, k, m, total_threads;
   std::string file_name;
-  double *matrix;
+  double *matrix, *reverse, *matrix_copy;
+  int *idxs;
 
   if (argc < 5 || argc > 6) {
     std::cout << "wrong argument's number\n" << "usage: 'prog n m 0 filename' or 'prog n m k t'" << std::endl;
@@ -36,9 +37,10 @@ int main(int argc, char **argv)
       return -2;
     }
   }
-
-  matrix = new double[n * n];
-  if (matrix == NULL) {
+  try {
+    matrix = new double[n * n];
+  }
+  catch (...) {
     std::cout << "can not allocate " << n << "*" << n << " input matrix" << std::endl;
     return -3;
   }
@@ -63,17 +65,33 @@ int main(int argc, char **argv)
   }
   else
     fill_matrix(k, n, matrix);
-  double *matrix_copy = new double[n * n];
+  try {
+    matrix_copy = new double[n * n];
+  }
+  catch ( ... ) {
+    std::cout << "can not allocate " << n << "*" << n << " matrix_copy" << std::endl;
+    delete[] matrix, matrix_copy;
+    return -3;
+  }
   fill_matrix(k, n, matrix_copy);
-  double *reverse = new double[n * n];
-  if (reverse == NULL) {
+  try {
+    reverse = new double[n * n];
+  }
+  catch (...) {
     std::cout << "can not allocate " << n << "*" << n << " output matrix" << std::endl;
     delete[] matrix, reverse, matrix_copy;
     return -3;
   }
   fill_matrix(5, n, reverse);
 
-  int *idxs = new int[n];
+  try {
+    idxs = new int[n];
+  }
+  catch (...) {
+        std::cout << "can not allocate " << n << "*" << n << " output matrix" << std::endl;
+    delete[] matrix, reverse, matrix_copy;
+    return -3;
+  }
   for (int i = 0; i < n; i++)
     idxs[i] = i;
   pthread_t *threads = new pthread_t[total_threads];
@@ -131,7 +149,7 @@ int main(int argc, char **argv)
   double gaus_id_error = error(matrix_copy, matrix, n);
   std::cout << "nerror: " << gaus_id_error << std::endl;
 
-  std::cout << "total time: " << get_full_time() - total_time << " s" << std::endl;
+  //std::cout << "total time: " << get_full_time() - total_time << " s" << std::endl;
   double thread_time = 0;
   for (int i = 0; i < total_threads; i++)
     thread_time += args->thread_time / (double)CLOCKS_PER_SEC;
@@ -146,19 +164,3 @@ int main(int argc, char **argv)
   delete[] max_el_list, max_idx_list;
   return 0;
 }
-
-// size = [100, 300, 500, 750, 1000, 1250, 1500, 1750, 2000]
-// time = [167, 436, 1297, 4056, 9105, 17359, 29770, 46996, 70696]
-/*
-  27.00 2.61
-  4.63 2.97
-  3.38 3.13
-  2.37 2.24
-  1.95 1.91
-  1.73 1.71
-  1.59 1.58
-  1.49 1.50
-*/
-
-// size = [1000, 2000, 4000]
-// time = [3642, 24976, 197951]
