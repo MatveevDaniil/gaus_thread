@@ -27,7 +27,7 @@ inline static void replace_with_main_element(double *matrix, double *reverse, in
   double *matrix_i = matrix + i * n, *reverse_i = reverse + i * n;
   double *matrix_main_i = matrix + main_i * n, *reverse_main_i = reverse + main_i * n;
   if (main_i == i) {
-    // òà æå ñòðîêà => ìåíÿåì ïåðåìåííûå, ò.å. ñòîëáöû
+    // Ã²Ã  Ã¦Ã¥ Ã±Ã²Ã°Ã®ÃªÃ  => Ã¬Ã¥Ã­Ã¿Ã¥Ã¬ Ã¯Ã¥Ã°Ã¥Ã¬Ã¥Ã­Ã­Ã»Ã¥, Ã².Ã¥. Ã±Ã²Ã®Ã«Ã¡Ã¶Ã»
     for (int k = 0; k < n; k++) {
       rabotyga = matrix[k * n + i];
       matrix[k * n + i] = matrix[k * n + main_j];
@@ -37,7 +37,7 @@ inline static void replace_with_main_element(double *matrix, double *reverse, in
       reverse[k * n + main_j] = rabotyga;
     }
   }
-  // òîò æå ñòîëáåö => ìåíÿåì ïîäñòðîêè â îáû÷íîé, è ñòðîêè â ïðèïèñàííîé
+  // Ã²Ã®Ã² Ã¦Ã¥ Ã±Ã²Ã®Ã«Ã¡Ã¥Ã¶ => Ã¬Ã¥Ã­Ã¿Ã¥Ã¬ Ã¯Ã®Ã¤Ã±Ã²Ã°Ã®ÃªÃ¨ Ã¢ Ã®Ã¡Ã»Ã·Ã­Ã®Ã©, Ã¨ Ã±Ã²Ã°Ã®ÃªÃ¨ Ã¢ Ã¯Ã°Ã¨Ã¯Ã¨Ã±Ã Ã­Ã­Ã®Ã©
   else if (main_j == i) {
     for (int k = i; k < n; k++) {
       rabotyga = matrix_i[k];
@@ -51,7 +51,7 @@ inline static void replace_with_main_element(double *matrix, double *reverse, in
     }
   }
   else {
-    // êîìáèíàöèÿ ïåðåñòàíîâîê
+    // ÃªÃ®Ã¬Ã¡Ã¨Ã­Ã Ã¶Ã¨Ã¿ Ã¯Ã¥Ã°Ã¥Ã±Ã²Ã Ã­Ã®Ã¢Ã®Ãª
     for (int k = 0; k < n; k++) {
       rabotyga = matrix[k * n + i];
       matrix[k * n + i] = matrix[k * n + main_j];
@@ -166,7 +166,7 @@ void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
           a_ii_rev = 1 / matrix[i * n + i];
           matrix_i = matrix + i * n;
           reverse_i = reverse + i * n;
-          // äîìíîæåàåì ïîäñòðîêè â îáû÷íîé è ñòðîêè â ïðèïèñàííîé
+          // Ã¤Ã®Ã¬Ã­Ã®Ã¦Ã¥Ã Ã¥Ã¬ Ã¯Ã®Ã¤Ã±Ã²Ã°Ã®ÃªÃ¨ Ã¢ Ã®Ã¡Ã»Ã·Ã­Ã®Ã© Ã¨ Ã±Ã²Ã°Ã®ÃªÃ¨ Ã¢ Ã¯Ã°Ã¨Ã¯Ã¨Ã±Ã Ã­Ã­Ã®Ã©
           for (k = i; k < n; k++) {
             matrix_i[k] *= a_ii_rev;
           }
@@ -189,7 +189,7 @@ void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
             reverse_i = reverse + i * n;
             //printf("%f\n", matrix_j[i]);
             m_ji = matrix_j[i];
-            // çà÷èùàåì ïîäñòðîêè â îáû÷íîé ìàòðèöå è ñòðîêè â ïðèïèñàííîé
+            // Ã§Ã Ã·Ã¨Ã¹Ã Ã¥Ã¬ Ã¯Ã®Ã¤Ã±Ã²Ã°Ã®ÃªÃ¨ Ã¢ Ã®Ã¡Ã»Ã·Ã­Ã®Ã© Ã¬Ã Ã²Ã°Ã¨Ã¶Ã¥ Ã¨ Ã±Ã²Ã°Ã®ÃªÃ¨ Ã¢ Ã¯Ã°Ã¨Ã¯Ã¨Ã±Ã Ã­Ã­Ã®Ã©
             for (k = i; k < n; k++) {
               matrix_j[k] -= m_ji * matrix_i[k];
             }
@@ -198,7 +198,7 @@ void gaus_fprop(double *matrix, double *reverse, int n, int *idxs,
             }
           }
         }
-        synchronize(total_threads);
+        //synchronize(total_threads);
       }
     }
   }
@@ -212,7 +212,7 @@ void *gaus_full_algorithm(void *void_args) {
   gaus_fprop(args->matrix, args->reverse, args->n, args->idxs,
     args->thread_idx, args->total_threads,
     args->max_idx_list, args->max_el_list, args[0].algo_error);
-  synchronize(args->total_threads);
+  //synchronize(args->total_threads);
   if (*args[0].algo_error) {
     gaus_bprop(args->matrix, args->reverse, args->n,
                args->thread_idx, args->total_threads);
