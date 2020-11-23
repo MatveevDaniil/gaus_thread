@@ -9,7 +9,7 @@ int main(int argc, char **argv)
 {
   int n, k, m, total_threads;
   std::string file_name;
-  double *matrix, *reverse, *matrix_copy;
+  double *matrix, *reverse;
   int *idxs;
 
   if (argc < 5 || argc > 6) {
@@ -66,20 +66,11 @@ int main(int argc, char **argv)
   else
     fill_matrix(k, n, matrix);
   try {
-    matrix_copy = new double[n * n];
-  }
-  catch ( ... ) {
-    std::cout << "can not allocate " << n << "*" << n << " matrix_copy" << std::endl;
-    delete[] matrix, matrix_copy;
-    return -3;
-  }
-  fill_matrix(k, n, matrix_copy);
-  try {
     reverse = new double[n * n];
   }
   catch (...) {
     std::cout << "can not allocate " << n << "*" << n << " output matrix" << std::endl;
-    delete[] matrix, reverse, matrix_copy;
+    delete[] matrix, reverse;
     return -3;
   }
   fill_matrix(5, n, reverse);
@@ -89,7 +80,7 @@ int main(int argc, char **argv)
   }
   catch (...) {
         std::cout << "can not allocate " << n << "*" << n << " output matrix" << std::endl;
-    delete[] matrix, reverse, matrix_copy;
+    delete[] matrix, reverse;
     return -3;
   }
   for (int i = 0; i < n; i++)
@@ -105,7 +96,7 @@ int main(int argc, char **argv)
     std::cout << "can not allocate threads or args" << std::endl;
     if (args) delete[]args;
     if (threads) delete[]threads;
-    delete[] matrix, reverse, matrix_copy, idxs;
+    delete[] matrix, reverse, idxs;
     return -7;
   }
   double *max_el_list = new double[total_threads];
@@ -122,11 +113,10 @@ int main(int argc, char **argv)
     args[i].max_el_list = max_el_list;
     args[i].max_idx_list = max_idx_list;
   }
-  double total_time = get_full_time();
   for (int i = 0; i < total_threads; i++)
     if (pthread_create(threads + i, 0, gaus_full_algorithm, args + i)) {
       std::cout << "error when creating thread " << i << std::endl;
-      delete[] args, threads, matrix, reverse, matrix_copy, idxs;
+      delete[] args, threads, matrix, reverse, idxs;
       delete[] max_el_list, max_idx_list;
       return -8;
     }
@@ -135,21 +125,20 @@ int main(int argc, char **argv)
     {
       std::cout << "error in joining threads" << std::endl;
       if (threads) delete[]threads;
-      delete[] args, matrix, reverse, matrix_copy, idxs;
+      delete[] args, matrix, reverse, idxs;
       delete[] max_el_list, max_idx_list;
       return -9;
     }
   if(*args[0].algo_error == 0) {
     std::cout << "det(matrix) = 0" << std::endl;
-    delete[] args, threads, matrix, reverse, matrix_copy, idxs;
+    delete[] args, threads, matrix, reverse, idxs;
     delete[] max_el_list, max_idx_list;
     return -10;
   }
-
-  double gaus_id_error = error(matrix_copy, matrix, n);
+  fill_matrix(k, n, reverse);
+  double gaus_id_error = error(reverse, matrix, n);
   std::cout << "nerror: " << gaus_id_error << std::endl;
 
-  //std::cout << "total time: " << get_full_time() - total_time << " s" << std::endl;
   double thread_time = 0;
   for (int i = 0; i < total_threads; i++)
     thread_time += args->thread_time / (double)CLOCKS_PER_SEC;
@@ -160,7 +149,7 @@ int main(int argc, char **argv)
 //   print_matrix(m, m, n, reverse);
 //   std::cout << "E matrix" << std::endl;
 //   print_matrix(m, m, n, matrix);
-  delete[] args, threads, matrix, reverse, matrix_copy, idxs;
+  delete[] args, threads, matrix, reverse, idxs;
   delete[] max_el_list, max_idx_list;
   return 0;
 }
